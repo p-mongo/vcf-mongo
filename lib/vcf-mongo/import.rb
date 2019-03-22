@@ -4,6 +4,9 @@ module VCFMongo
    module Import
       require 'set'
       require 'java'
+
+      $: << File.join(File.dirname(__FILE__), '../..')
+
       require 'htsjdk/sam-1.113.jar'
       require 'htsjdk/tribble-1.113.jar'
       require 'htsjdk/variant-1.113.jar'
