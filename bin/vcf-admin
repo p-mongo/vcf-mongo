@@ -3,6 +3,7 @@
 require 'optparse'
 
 # MongoDB:
+gem 'mongo', '~> 1.0'
 require 'mongo'
 include Mongo
 
