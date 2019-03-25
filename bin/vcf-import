@@ -338,7 +338,7 @@ if fatal_errors
    if not parser_threads_errors.empty?
       warn "Errors were encountered while executing the initial parsing operation:"
       warn "Please note that most likely these errors are bubbling up directly from the HTSJDK parser.\n"
-      while parser_threads_errors.empty?
+      until parser_threads_errors.empty?
          warn parser_threads_errors.pop.getMessage
          warn "\n"
       end
