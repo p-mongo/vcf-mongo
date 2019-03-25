@@ -22,6 +22,6 @@ Gem::Specification.new do |s|
     'vcf-admin',
     'vcf-private'
   ]
-  s.add_runtime_dependency "mongo"
+  s.add_runtime_dependency "mongo", '~> 1.0'
   s.licenses       = ['BSD', 'MIT']
 end
