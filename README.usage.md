@@ -19,3 +19,7 @@ Install the gem:
 Execute the import command:
 
     vcf-import myCollection file1.vcf file2.vcf.gz ...
+
+Dev import:
+
+    be ruby -I. -Ilib bin/vcf-admin fix test; be ruby -I. -Ilib bin/vcf-import test VCF_40.vcf
