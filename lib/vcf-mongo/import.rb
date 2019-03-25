@@ -21,20 +21,20 @@ module VCFMongo
          end
       end
 
-      # Takes a Mongo::DB instance and initializes it for usage as a VCF store 
+      # Takes a Mongo::DB instance and initializes it for usage as a VCF store
       # by adding a '__METADATA__' collection with a '__METADATA__' document in it.
-      def init_db(db)
+      def init_db(client)
          meta = {
             "_id" => '__METADATA__',
             "created" => Time.now,
             "application" => "VCFDB",
             "version" => DATAMODEL_VERSION
          }
-         db.collection('__METADATA__').insert(meta)
+         client['__METADATA__'].insert_one(meta)
       end
 
       # Creates the metadata document for a new collection.
-      def init_metadata(db, coll_name, files, headers, samples)
+      def init_metadata(client, coll_name, files, headers, samples)
          samples_field = []
          samples.each_with_index {|sublist, i| sublist.each {|s| samples_field << {'name' => s, 'vcfid' => i}}}
 
@@ -48,7 +48,7 @@ module VCFMongo
             'last_inconsistency_reason' => ['INIT'],
             'last_edit'                 => Time.now,
          }
-         db.collection('__METADATA__').insert(meta)
+         client['__METADATA__'].insert(meta)
          return {:old_vcfs => 0, :old_samples => 0}
       end
 
@@ -88,7 +88,7 @@ module VCFMongo
             @INFO    = Hash[parser_record.getAttributes.map {|name, attribute| [name, attribute] }]
             # @meta    = {'snp' => parser_record.isSNP}
             @samples = parser_record.getGenotypes.map do |call|
-               
+
                # Standard fields:
                sample = {'GT' => call.getAlleleStrings.map{|al| al}}
                if call.hasAD
@@ -106,7 +106,7 @@ module VCFMongo
 
 
                # Extra fields:
-               call.getExtendedAttributes.each do |k, v| 
+               call.getExtendedAttributes.each do |k, v|
                   if v.respond_to? :each
                      sample[k] = v.map {|x| x}
                   else
@@ -129,7 +129,7 @@ module VCFMongo
       # the alingment of multiple VCF files in order to be able
       # to perform merging operations concurrently.
       class VCFRecordAligner < Enumerator
-         def initialize (input_buffers) 
+         def initialize (input_buffers)
             @input_buffers = input_buffers
          end
 
@@ -142,7 +142,7 @@ module VCFMongo
             return 1
          end
 
-         def each(&block) #TODO: remove yield logic to have less thread trashing 
+         def each(&block) #TODO: remove yield logic to have less thread trashing
             record_buffer = @input_buffers.map {|b| b.pop}
             exhausted_parsers = record_buffer.count(:done)
             total_parsers = record_buffer.length
@@ -164,7 +164,7 @@ module VCFMongo
                   pos = record.POS
 
                   case self.compare(chrom, pos, current_chrom, current_pos)
-                  when -1 
+                  when -1
                      current_chrom = chrom
                      current_pos = pos
                      selected_records = [record]
@@ -250,36 +250,36 @@ module VCFMongo
          headers = parsers.map do |p|
             header = {
                'fileformat' => "",
-               'contigs'    => [], 
+               'contigs'    => [],
                'formats'    => [],
                'filters'    => [],
                'infos'      => [],
                'others'     => []
             }
 
-            p.getFileHeader.getMetaDataInSortedOrder.each do |m|  
+            p.getFileHeader.getMetaDataInSortedOrder.each do |m|
                key = m.getKey
                case key
                when 'fileformat'
                   header['fileformat'] = m.getValue
                when 'FORMAT'
                   header['formats'] << {
-                     'ID' => m.getID, 
+                     'ID' => m.getID,
                      'line' => m.toStringEncoding
                   }
                when 'INFO'
                   header['infos'] << {
-                     'ID' => m.getID, 
+                     'ID' => m.getID,
                      'line' => m.toStringEncoding
                   }
                when 'FILTER'
                   header['filters'] << {
-                     'ID' => m.getID, 
+                     'ID' => m.getID,
                      'line' => m.toStringEncoding
                   }
                when 'contig'
                   header['contigs'] << {
-                     'ID' => m.getID, 
+                     'ID' => m.getID,
                      'line' => m.toStringEncoding
                   }
                else
@@ -330,7 +330,7 @@ module VCFMongo
                      done_symbols_found += 1
                      next
                   end
-            
+
                   filtering_condition = {'_id' => elem['_id']}
                   update_operation = {
                   '$setOnInsert' => {
@@ -361,7 +361,7 @@ module VCFMongo
          if count != 0
             bulk.execute
             total_counter.add(count)
-         end 
+         end
       end
 
 

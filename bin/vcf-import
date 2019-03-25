@@ -156,7 +156,7 @@ if options[:db] == 'VCF'
    puts "# Defaulting to `VCF` database."
 end
 
-dbconn = MongoClient.new(options[:address], options[:port]).db(options[:db])
+dbconn = Mongo::Client.new(["#{options[:address]}:#{options[:port]}"], database: options[:db])
 dbstatus = check_db(dbconn)
 case dbstatus
 when :ok

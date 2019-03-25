@@ -1,22 +1,22 @@
 module VCFMongo
 
-   # The Admin module contains all administrative operations, 
+   # The Admin module contains all administrative operations,
    # such as listing all present collections and checking for various statuses.
    module Admin
-      
+
       # Takes in input a Mongo::DB instance and checks if the database it references
-      # belongs to this application or not. 
+      # belongs to this application or not.
       # Return values are either the symbols :empty, :ok, :bad or a string that says
       # that there is a version mismatch between the script and the datamodel version
       # upon which the database was created.
-      def check_db(db)
-         collections = db.collection_names.reject{|c| c.start_with?("system.")} 
+      def check_db(client)
+         collections = client.database.collection_names.reject{|c| c.start_with?("system.")}
          if collections.length == 0
             return :empty
          end
          if collections.include? '__METADATA__'
-            metadata = db.collection('__METADATA__').find_one('_id' => '__METADATA__', 'application' => 'VCFDB')
-            if metadata 
+            metadata = client['__METADATA__'].find('_id' => '__METADATA__', 'application' => 'VCFDB').first
+            if metadata
                if metadata['version'] == DATAMODEL_VERSION
                   return :ok
                else
@@ -34,9 +34,9 @@ module VCFMongo
       # :spuriousM   (there is a metadata document but the collection does not exist),
       # :INIT        (there is an initial import operation pending)
       # :APPEND      (there is an append import operation pending)
-      def check_collection(db, coll_name)
-         table_exists = db.collection_names.include? coll_name
-         meta = db.collection('__METADATA__').find_one('_id' => coll_name)
+      def check_collection(client, coll_name)
+         table_exists = client.database.collection_names.include? coll_name
+         meta = client['__METADATA__'].find('_id' => coll_name).first
 
          if not table_exists and not meta
             return :new
@@ -56,7 +56,7 @@ module VCFMongo
          return :APPEND
       end
 
-      # Takes a Mongo::DB instance in input and returns a list of all present 
+      # Takes a Mongo::DB instance in input and returns a list of all present
       # collections (as present in the '__METADATA__' meta-collection)
       def list_collections(db)
          return db.collection('__METADATA__').find({'_id' => {'$ne'=> '__METADATA__'}}, {:fields => '_id'}).map {|c| c['_id']}
@@ -126,7 +126,7 @@ module VCFMongo
          end
       end
 
-      # Takes a Mongo::DB instance, a String representing a collection name 
+      # Takes a Mongo::DB instance, a String representing a collection name
       # and a symbol between [:spuriousM, :INIT, :APPEND] in input.
       # Performs the appropriate fixing operation.
       def fix_collection(db, coll_name, fixtype)
@@ -145,7 +145,7 @@ module VCFMongo
                raise "the metadata state is incoherent"
             end
             bad_samples = []
-            metadata['samples'].each do |s| 
+            metadata['samples'].each do |s|
                if s['vcfid'] >= first_bad_vcf
                   bad_samples << s['name']
                end
@@ -157,7 +157,7 @@ module VCFMongo
             update_operation = {
                '$push' => {
                   'IDs'     => {'$each' => [], '$slice'=> number_of_good_vcfs},
-                  'QUALs'   => {'$each' => [], '$slice'=> number_of_good_vcfs}, 
+                  'QUALs'   => {'$each' => [], '$slice'=> number_of_good_vcfs},
                   'FILTERs' => {'$each' => [], '$slice'=> number_of_good_vcfs},
                   'INFOs'   => {'$each' => [], '$slice'=> number_of_good_vcfs},
                   'samples' => {'$each' => [], '$slice'=> number_of_good_samples}
@@ -167,7 +167,7 @@ module VCFMongo
             db.collection(coll_name).update({}, update_operation, {:multi => true})
 
             metadata_update_operation = {
-               '$set' => {'consistent' => true}, 
+               '$set' => {'consistent' => true},
                '$push' => {
                   'vcfs'    => {'$each' => [], '$slice' => number_of_good_vcfs},
                   'headers' => {'$each' => [], '$slice' => number_of_good_vcfs},
